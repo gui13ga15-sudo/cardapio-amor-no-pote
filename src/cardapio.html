@@ -375,6 +375,33 @@
   .hours-list li{display:flex;justify-content:space-between;gap:12px;font-size:.92rem;}
   .hours-list li span{color:var(--plum-soft);}
   .status-note{margin:14px 0 0;font-size:.88rem;color:#B8503F;font-weight:700;}
+
+  /* ESTOQUE + AGENDA */
+  .stock-badge{
+    position:absolute;left:10px;bottom:10px;background:rgba(255,255,255,.94);color:var(--plum);
+    font-size:.7rem;font-weight:800;padding:4px 9px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.12);
+  }
+  .stock-pill{
+    font-size:.7rem;font-weight:800;padding:4px 9px;border-radius:999px;background:var(--blush);color:var(--plum);white-space:nowrap;
+  }
+  .stock-pill.low{background:#FDE8D8;color:#A85B22;}
+  .stock-pill.out{background:#F7D9D3;color:#B8503F;}
+  .stock-stepper{display:flex;align-items:center;gap:6px;}
+  .stock-stepper button{
+    width:26px;height:26px;border-radius:8px;border:1px solid var(--blush);background:#fff;color:var(--plum);font-weight:800;cursor:pointer;
+  }
+  .schedule-editor{display:flex;flex-direction:column;gap:10px;}
+  .schedule-row{
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--cream,#FFF9F5);
+    border:1px solid var(--blush);border-radius:12px;padding:10px 12px;
+  }
+  .schedule-row .sch-day{flex:1;min-width:110px;font-weight:800;color:var(--plum);font-size:.9rem;}
+  .schedule-row .sch-toggle{display:flex;align-items:center;gap:6px;font-size:.8rem;font-weight:700;color:var(--plum-soft);}
+  .schedule-row .sch-toggle input{width:auto;margin:0;}
+  .schedule-row input[type=time]{width:auto;padding:6px 8px;}
+  .schedule-row.is-closed input[type=time]{opacity:.45;pointer-events:none;}
+  .hours-list li.is-today strong{color:var(--rose-gold,#B76E79);}
+  .hours-list li.is-today span{font-weight:800;}
 </style>
 </head>
 <body>
@@ -408,11 +435,7 @@
   <div class="hours-card">
     <span class="status-badge is-open" id="statusBadge">Aberto agora</span>
     <h2>Horário de funcionamento</h2>
-    <ul class="hours-list">
-      <li><span>Terça a sexta</span><strong id="hoursWeek">11:00 às 22:00</strong></li>
-      <li><span>Sábado e domingo</span><strong id="hoursWeekend">14:00 às 00:00</strong></li>
-      <li><span>Segunda-feira</span><strong>Fechado</strong></li>
-    </ul>
+    <ul class="hours-list" id="hoursList"></ul>
     <p class="status-note" id="statusNote" style="display:none;"></p>
   </div>
 </section>
@@ -566,18 +589,9 @@
           <input type="text" id="settStatusNote" placeholder="Ex: Hoje fechamos mais cedo">
         </div>
         <div class="field">
-          <label>Terça a sexta</label>
-          <div style="display:flex;gap:10px;">
-            <input type="time" id="settWeekOpen">
-            <input type="time" id="settWeekClose">
-          </div>
-        </div>
-        <div class="field">
-          <label>Sábado e domingo</label>
-          <div style="display:flex;gap:10px;">
-            <input type="time" id="settWeekendOpen">
-            <input type="time" id="settWeekendClose">
-          </div>
+          <label>Dias e horários de funcionamento</label>
+          <p class="sub" style="margin:0 0 10px;">Desmarque "Aberto" para fechar o dia. Marque para abrir e escolha os horários.</p>
+          <div class="schedule-editor" id="scheduleEditor"></div>
         </div>
         <hr style="border:none;border-top:1px solid var(--blush);margin:20px 0;">
         <div class="field">
@@ -621,6 +635,15 @@
       <div class="field">
         <label for="prodDesc">Descrição</label>
         <textarea id="prodDesc" placeholder="Fale um pouco sobre o produto..."></textarea>
+      </div>
+      <div class="field" style="display:flex;align-items:center;gap:10px;">
+        <input type="checkbox" id="prodTrackStock" style="width:auto;">
+        <label for="prodTrackStock" style="margin:0;">Controlar estoque deste produto</label>
+      </div>
+      <div class="field" id="prodStockField" style="display:none;">
+        <label for="prodStock">Quantidade em estoque</label>
+        <input type="number" id="prodStock" min="0" step="1" placeholder="Ex: 1">
+        <p class="sub" style="margin:6px 0 0;">O cliente só consegue pedir até essa quantidade. Ao chegar em 0 o produto fica indisponível automaticamente.</p>
       </div>
       <div class="field" style="display:flex;align-items:center;gap:10px;">
         <input type="checkbox" id="prodAvailable" checked style="width:auto;">
@@ -668,8 +691,19 @@ const DEFAULT_SETTINGS = {
     weekClose: "22:00",
     weekendOpen: "14:00",
     weekendClose: "00:00"
-  }
+  },
+  schedule: [
+    { day: 0, open: true,  from: "14:00", to: "00:00" },
+    { day: 1, open: false, from: "11:00", to: "22:00" },
+    { day: 2, open: true,  from: "11:00", to: "22:00" },
+    { day: 3, open: true,  from: "11:00", to: "22:00" },
+    { day: 4, open: true,  from: "11:00", to: "22:00" },
+    { day: 5, open: true,  from: "11:00", to: "22:00" },
+    { day: 6, open: true,  from: "14:00", to: "00:00" }
+  ]
 };
+
+const DAY_NAMES = ["Domingo","Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado"];
 
 let settings = DEFAULT_SETTINGS;
 let products = [];
@@ -720,6 +754,7 @@ async function initData(){
       return;
     }
     products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    reconcileCartWithStock();
     renderTabs();
     renderProducts();
     if(isAdmin) renderAdminProducts();
@@ -759,19 +794,36 @@ function isWithin(nowMin, open, close){
   if(c > o) return nowMin >= o && nowMin < c;
   return nowMin >= o || nowMin < c; // vira a madrugada
 }
+// Agenda por dia da semana (com migração dos horários antigos)
+function getSchedule(){
+  const raw = settings.schedule;
+  const legacy = getHours();
+  const fallbackFor = (d)=>{
+    if(d === 1) return { day:d, open:false, from: legacy.weekOpen, to: legacy.weekClose };
+    if(d === 0 || d === 6) return { day:d, open:true, from: legacy.weekendOpen, to: legacy.weekendClose };
+    return { day:d, open:true, from: legacy.weekOpen, to: legacy.weekClose };
+  };
+  return Array.from({length:7}, (_, d)=>{
+    const found = Array.isArray(raw) ? raw.find(x=> Number(x && x.day) === d) : null;
+    if(!found) return fallbackFor(d);
+    return {
+      day: d,
+      open: found.open !== false,
+      from: found.from || fallbackFor(d).from,
+      to: found.to || fallbackFor(d).to
+    };
+  });
+}
 function computeOpen(){
-  const h = getHours();
+  const sch = getSchedule();
   const now = new Date();
   const day = now.getDay(); // 0 dom, 1 seg ... 6 sab
   const nowMin = now.getHours()*60 + now.getMinutes();
-  const prevDay = (day + 6) % 7;
-  const isWeekDay = (d)=> d>=2 && d<=5;      // terça a sexta
-  const isWeekendDay = (d)=> d===6 || d===0; // sábado e domingo
-  if(isWeekDay(day) && isWithin(nowMin, h.weekOpen, h.weekClose)) return true;
-  if(isWeekendDay(day) && isWithin(nowMin, h.weekendOpen, h.weekendClose)) return true;
+  const today = sch[day];
+  if(today.open && isWithin(nowMin, today.from, today.to)) return true;
   // horário que atravessa a meia-noite do dia anterior
-  if(isWeekDay(prevDay) && toMin(h.weekClose) < toMin(h.weekOpen) && nowMin < toMin(h.weekClose)) return true;
-  if(isWeekendDay(prevDay) && toMin(h.weekendClose) < toMin(h.weekendOpen) && nowMin < toMin(h.weekendClose)) return true;
+  const prev = sch[(day + 6) % 7];
+  if(prev.open && toMin(prev.to) < toMin(prev.from) && nowMin < toMin(prev.to)) return true;
   return false;
 }
 function isStoreOpen(){
@@ -788,14 +840,50 @@ function renderStoreStatus(){
     badge.textContent = open ? 'Aberto agora' : 'Fechado no momento';
     badge.className = 'status-badge ' + (open ? 'is-open' : 'is-closed');
   }
-  const wk = document.getElementById('hoursWeek');
-  const wknd = document.getElementById('hoursWeekend');
-  if(wk) wk.textContent = `${h.weekOpen} às ${h.weekClose}`;
-  if(wknd) wknd.textContent = `${h.weekendOpen} às ${h.weekendClose}`;
+  const list = document.getElementById('hoursList');
+  if(list){
+    const today = new Date().getDay();
+    list.innerHTML = getSchedule().map(d=> `
+      <li class="${d.day===today?'is-today':''}">
+        <span>${DAY_NAMES[d.day]}${d.day===today?' (hoje)':''}</span>
+        <strong>${d.open ? `${d.from} às ${d.to}` : 'Fechado'}</strong>
+      </li>`).join('');
+  }
   const note = document.getElementById('statusNote');
   if(note){
     if(settings.statusNote){ note.textContent = settings.statusNote; note.style.display=''; }
     else note.style.display='none';
+  }
+}
+
+// ---------- ESTOQUE ----------
+function tracksStock(p){
+  return !!(p && p.trackStock);
+}
+function stockLeft(p){
+  if(!tracksStock(p)) return Infinity;
+  const n = Number(p.stock);
+  return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
+}
+function isSellable(p){
+  return !!p && p.available !== false && stockLeft(p) > 0;
+}
+// mantém o carrinho dentro do estoque disponível
+function reconcileCartWithStock(){
+  let changed = false;
+  const next = [];
+  cart.forEach(item=>{
+    const p = products.find(x=>x.id===item.id);
+    if(!p || p.available === false){ changed = true; return; }
+    const max = stockLeft(p);
+    if(max <= 0){ changed = true; return; }
+    if(item.qty > max){ item.qty = max; changed = true; }
+    next.push(item);
+  });
+  if(changed){
+    cart = next;
+    saveCartLocal();
+    renderCart();
   }
 }
 
@@ -848,14 +936,15 @@ function renderProducts(){
       <div class="product-img-wrap">
         ${p.image ? `<img src="${p.image}" alt="${escapeAttr(p.name)}">` : `<div class="noimg">🍬</div>`}
         <div class="seal">${formatPrice(p.price).replace('R$','R$\u200a')}</div>
-        ${!p.available ? `<div class="unavailable-badge">Esgotado</div>` : ''}
+        ${!isSellable(p) ? `<div class="unavailable-badge">Esgotado</div>` : ''}
+        ${isSellable(p) && stockLeft(p) <= 5 ? `<div class="stock-badge">${stockLeft(p) === 1 ? 'Última unidade' : `Só ${stockLeft(p)} restantes`}</div>` : ''}
       </div>
       <div class="product-body">
         <h3>${escapeHtml(p.name)}</h3>
         <p>${escapeHtml(p.description||'')}</p>
         <div class="product-footer">
           <span style="font-size:.78rem;color:var(--plum-soft);font-weight:700;">${escapeHtml(p.category||'')}</span>
-          ${p.available ? `<button class="add-btn" data-id="${p.id}" aria-label="Adicionar ao carrinho">+</button>` : ''}
+          ${isSellable(p) ? `<button class="add-btn" data-id="${p.id}" aria-label="Adicionar ao carrinho">+</button>` : ''}
         </div>
       </div>
     </div>
@@ -867,11 +956,18 @@ function renderProducts(){
 
 // ---------- CART ----------
 function addToCart(id){
+  const p = products.find(x=>x.id===id);
+  if(!p) return;
+  if(!isSellable(p)){ showToast("Produto esgotado no momento"); return; }
+  const max = stockLeft(p);
   const existing = cart.find(i=>i.id===id);
-  if(existing){ existing.qty++; }
-  else{
-    const p = products.find(x=>x.id===id);
-    if(!p) return;
+  if(existing){
+    if(existing.qty >= max){
+      showToast(max === 1 ? "Temos apenas 1 unidade disponível" : `Temos apenas ${max} unidades disponíveis`);
+      return;
+    }
+    existing.qty++;
+  }else{
     cart.push({id:p.id, name:p.name, price:p.price, image:p.image, qty:1});
   }
   saveCartLocal();
@@ -881,6 +977,14 @@ function addToCart(id){
 function changeQty(id, delta){
   const item = cart.find(i=>i.id===id);
   if(!item) return;
+  if(delta > 0){
+    const p = products.find(x=>x.id===id);
+    const max = stockLeft(p);
+    if(item.qty + delta > max){
+      showToast(max === 1 ? "Temos apenas 1 unidade disponível" : `Temos apenas ${max} unidades disponíveis`);
+      return;
+    }
+  }
   item.qty += delta;
   if(item.qty <= 0){ cart = cart.filter(i=>i.id!==id); }
   saveCartLocal();
@@ -910,7 +1014,7 @@ function renderCart(){
           <div class="qty-control">
             <button data-act="minus" data-id="${i.id}">−</button>
             <span>${i.qty}</span>
-            <button data-act="plus" data-id="${i.id}">+</button>
+            <button data-act="plus" data-id="${i.id}"${(()=>{ const p = products.find(x=>x.id===i.id); return stockLeft(p) <= i.qty ? ' disabled style="opacity:.4;"' : ''; })()}>+</button>
           </div>
           <button class="remove-link" data-remove="${i.id}">remover</button>
         </div>
@@ -991,6 +1095,22 @@ async function submitOrder(e){
     }
   }
 
+  // valida estoque antes de fechar o pedido
+  for(const item of cart){
+    const p = products.find(x=>x.id===item.id);
+    if(!p || p.available === false){
+      showToast(`${item.name} não está mais disponível`);
+      reconcileCartWithStock();
+      return;
+    }
+    const max = stockLeft(p);
+    if(item.qty > max){
+      showToast(max === 0 ? `${item.name} esgotou` : `${item.name}: só temos ${max} agora`);
+      reconcileCartWithStock();
+      return;
+    }
+  }
+
   // Abre a janela do WhatsApp de forma síncrona (evita bloqueio de pop-up dos navegadores)
   const waWindow = window.open('', '_blank');
 
@@ -1016,6 +1136,16 @@ async function submitOrder(e){
     if(waWindow) waWindow.close();
     return;
   }
+
+  // baixa do estoque dos produtos controlados
+  try{
+    await Promise.all(order.items.map(async (i)=>{
+      const p = products.find(x=>x.id===i.id);
+      if(!tracksStock(p)) return;
+      const left = Math.max(0, stockLeft(p) - i.qty);
+      await updateDoc(doc(db, 'products', i.id), { stock: left });
+    }));
+  }catch(e){ console.error('stock update failed', e); }
 
   let msg = `Olá! Gostaria de fazer o seguinte pedido no *${settings.storeName}*:\n\n`;
   order.items.forEach(i=>{
@@ -1136,7 +1266,14 @@ function renderAdminProducts(){
         <strong>${escapeHtml(p.name)}</strong>
         <span>${escapeHtml(p.category||'')} · ${formatPrice(p.price)}</span>
       </div>
-      <span class="status-pill ${p.available?'available':'unavailable'}">${p.available?'Disponível':'Esgotado'}</span>
+      <span class="status-pill ${isSellable(p)?'available':'unavailable'}">${isSellable(p)?'Disponível':'Esgotado'}</span>
+      ${tracksStock(p)
+        ? `<div class="stock-stepper">
+             <button data-stock-minus="${p.id}" title="Remover 1 do estoque">−</button>
+             <span class="stock-pill ${stockLeft(p)===0?'out':(stockLeft(p)<=5?'low':'')}">${stockLeft(p)} em estoque</span>
+             <button data-stock-plus="${p.id}" title="Adicionar 1 ao estoque">+</button>
+           </div>`
+        : `<span class="stock-pill">Estoque livre</span>`}
       <div class="admin-item-actions">
         <button class="icon-btn" data-edit="${p.id}" title="Editar">✎</button>
         <button class="icon-btn" data-toggle="${p.id}" title="Disponibilidade">⇄</button>
@@ -1144,11 +1281,21 @@ function renderAdminProducts(){
       </div>
     </div>
   `).join('');
+  wrap.querySelectorAll('[data-stock-minus]').forEach(b=> b.addEventListener('click', ()=> adjustStock(b.dataset.stockMinus, -1)));
+  wrap.querySelectorAll('[data-stock-plus]').forEach(b=> b.addEventListener('click', ()=> adjustStock(b.dataset.stockPlus, 1)));
   wrap.querySelectorAll('[data-edit]').forEach(b=> b.addEventListener('click', ()=> openProductForm(b.dataset.edit)));
   wrap.querySelectorAll('[data-toggle]').forEach(b=> b.addEventListener('click', ()=> toggleAvailability(b.dataset.toggle)));
   wrap.querySelectorAll('[data-del]').forEach(b=> b.addEventListener('click', ()=> deleteProduct(b.dataset.del)));
 }
 
+async function adjustStock(id, delta){
+  const p = products.find(x=>x.id===id);
+  if(!p) return;
+  const next = Math.max(0, stockLeft(p) + delta);
+  try{
+    await updateDoc(doc(db, 'products', id), { stock: next, trackStock: true });
+  }catch(e){ console.error(e); showToast("Erro ao atualizar estoque."); }
+}
 async function toggleAvailability(id){
   const p = products.find(x=>x.id===id);
   if(!p) return;
@@ -1181,6 +1328,9 @@ function openProductForm(id){
     document.getElementById('prodPrice').value = p.price;
     document.getElementById('prodDesc').value = p.description || '';
     document.getElementById('prodAvailable').checked = p.available !== false;
+    document.getElementById('prodTrackStock').checked = tracksStock(p);
+    document.getElementById('prodStock').value = tracksStock(p) ? stockLeft(p) : '';
+    updateStockFieldVisibility();
     if(p.image){
       pendingProdImage = p.image;
       const prev = document.getElementById('prodImgPreview');
@@ -1190,6 +1340,9 @@ function openProductForm(id){
   }else{
     document.getElementById('productModalTitle').textContent = 'Novo produto';
     document.getElementById('prodId').value = '';
+    document.getElementById('prodTrackStock').checked = false;
+    document.getElementById('prodStock').value = '';
+    updateStockFieldVisibility();
   }
   document.getElementById('productModal').classList.add('show');
   lockBodyScroll();
@@ -1209,6 +1362,10 @@ async function submitProductForm(e){
     price: parseFloat(document.getElementById('prodPrice').value) || 0,
     description: document.getElementById('prodDesc').value.trim(),
     available: document.getElementById('prodAvailable').checked,
+    trackStock: document.getElementById('prodTrackStock').checked,
+    stock: document.getElementById('prodTrackStock').checked
+      ? Math.max(0, parseInt(document.getElementById('prodStock').value, 10) || 0)
+      : null,
     image: pendingProdImage !== null ? pendingProdImage : (existing ? existing.image : null)
   };
   try{
@@ -1274,16 +1431,48 @@ function fillSettingsForm(){
   document.getElementById('settTagline').value = settings.tagline;
   document.getElementById('settLead').value = settings.lead;
   document.getElementById('settPhone').value = settings.phone;
-  const h = { ...DEFAULT_SETTINGS.hours, ...(settings.hours||{}) };
-  document.getElementById('settWeekOpen').value = h.weekOpen;
-  document.getElementById('settWeekClose').value = h.weekClose;
-  document.getElementById('settWeekendOpen').value = h.weekendOpen;
-  document.getElementById('settWeekendClose').value = h.weekendClose;
+  renderScheduleEditor();
   document.getElementById('settStoreStatus').value = settings.storeStatus || 'auto';
   document.getElementById('settStatusNote').value = settings.statusNote || '';
   document.getElementById('settNewPass').value = '';
   const prev = document.getElementById('logoPreview');
   if(settings.logo){ prev.src = settings.logo; prev.style.display='block'; document.getElementById('logoUploadText').style.display='none'; }
+}
+function renderScheduleEditor(){
+  const wrap = document.getElementById('scheduleEditor');
+  if(!wrap) return;
+  const order = [1,2,3,4,5,6,0]; // segunda -> domingo
+  const sch = getSchedule();
+  wrap.innerHTML = order.map(d=>{
+    const item = sch[d];
+    return `
+    <div class="schedule-row ${item.open?'':'is-closed'}" data-day="${d}">
+      <span class="sch-day">${DAY_NAMES[d]}</span>
+      <label class="sch-toggle"><input type="checkbox" data-sch-open="${d}" ${item.open?'checked':''}> Aberto</label>
+      <input type="time" data-sch-from="${d}" value="${item.from}">
+      <input type="time" data-sch-to="${d}" value="${item.to}">
+    </div>`;
+  }).join('');
+  wrap.querySelectorAll('[data-sch-open]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      cb.closest('.schedule-row').classList.toggle('is-closed', !cb.checked);
+    });
+  });
+}
+function readScheduleEditor(){
+  const wrap = document.getElementById('scheduleEditor');
+  const current = getSchedule();
+  if(!wrap) return current;
+  return current.map(item=>{
+    const row = wrap.querySelector(`.schedule-row[data-day="${item.day}"]`);
+    if(!row) return item;
+    return {
+      day: item.day,
+      open: row.querySelector('[data-sch-open]').checked,
+      from: row.querySelector('[data-sch-from]').value || item.from,
+      to: row.querySelector('[data-sch-to]').value || item.to
+    };
+  });
 }
 async function submitSettingsForm(e){
   e.preventDefault();
@@ -1294,11 +1483,12 @@ async function submitSettingsForm(e){
   updated.phone = document.getElementById('settPhone').value.trim();
   updated.storeStatus = document.getElementById('settStoreStatus').value;
   updated.statusNote = document.getElementById('settStatusNote').value.trim();
+  updated.schedule = readScheduleEditor();
+  const tue = updated.schedule.find(d=>d.day===2) || {from:'11:00',to:'22:00'};
+  const sat = updated.schedule.find(d=>d.day===6) || {from:'14:00',to:'00:00'};
   updated.hours = {
-    weekOpen: document.getElementById('settWeekOpen').value || '11:00',
-    weekClose: document.getElementById('settWeekClose').value || '22:00',
-    weekendOpen: document.getElementById('settWeekendOpen').value || '14:00',
-    weekendClose: document.getElementById('settWeekendClose').value || '00:00'
+    weekOpen: tue.from, weekClose: tue.to,
+    weekendOpen: sat.from, weekendClose: sat.to
   };
   updated.logo = pendingLogoImage;
   const newPass = document.getElementById('settNewPass').value;
@@ -1345,6 +1535,12 @@ document.getElementById('prodImgInput').addEventListener('change', async (e)=>{
   prev.src = dataUrl; prev.style.display='block';
   document.getElementById('prodImgUploadText').style.display='none';
 });
+
+function updateStockFieldVisibility(){
+  const on = document.getElementById('prodTrackStock').checked;
+  document.getElementById('prodStockField').style.display = on ? '' : 'none';
+}
+document.getElementById('prodTrackStock').addEventListener('change', updateStockFieldVisibility);
 
 document.getElementById('settingsForm').addEventListener('submit', submitSettingsForm);
 document.getElementById('logoFileInput').addEventListener('change', async (e)=>{
