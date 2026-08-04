@@ -121,19 +121,40 @@
   .hero-cta:hover{background:var(--rose-gold-dark);transform:translateY(-2px);}
 
   /* CATEGORY TABS */
-  .menu-section{padding:10px 20px 70px;}
-  .menu-title{text-align:center;margin-bottom:22px;}
+  .menu-section{padding:10px 20px 6px;}
+  .menu-title{text-align:center;margin-bottom:6px;}
   .menu-title h2{font-size:1.9rem;}
   .menu-title span{color:var(--plum-soft);font-size:.95rem;}
+
+  /* Sticky category nav — iFood-style scrolling tabs */
+  .tabs-sticky-wrap{
+    position:sticky;
+    top:var(--header-h, 67px);
+    z-index:39;
+    background:rgba(251,241,231,0.97);
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid rgba(196,136,95,0.25);
+  }
   .tabs{
-    display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:32px;
+    display:flex;gap:26px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+    scrollbar-width:none;padding:14px 20px;max-width:1080px;margin:0 auto;
   }
+  .tabs::-webkit-scrollbar{display:none;}
   .tab{
-    background:var(--white);border:1.5px solid var(--blush);color:var(--plum-soft);
-    padding:8px 18px;border-radius:999px;font-weight:700;font-size:.88rem;
-    transition:all .15s ease;
+    background:none;border:none;white-space:nowrap;flex-shrink:0;scroll-snap-align:start;
+    color:var(--plum-soft);font-weight:700;font-size:.95rem;
+    padding:4px 2px 12px;position:relative;transition:color .15s ease;
   }
-  .tab.active,.tab:hover{background:var(--plum);border-color:var(--plum);color:#fff;}
+  .tab.active{color:var(--plum);}
+  .tab.active::after{
+    content:"";position:absolute;left:0;right:0;bottom:0;height:3px;
+    background:var(--rose-gold);border-radius:3px;
+  }
+
+  .menu-body{padding:26px 20px 70px;max-width:1080px;margin:0 auto;}
+  .category-section{margin-bottom:46px;scroll-margin-top:calc(var(--header-h, 67px) + 64px);}
+  .category-section:last-child{margin-bottom:0;}
+  .category-heading{font-size:1.35rem;margin-bottom:16px;}
 
   .grid{
     display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:22px;
@@ -352,6 +373,24 @@
   .img-upload input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;}
 
   .empty-admin{text-align:center;padding:50px 20px;color:var(--plum-soft);}
+  .order-subhead{font-size:1rem;color:var(--plum-soft);margin:0 0 10px;}
+  .order-cat-group{margin-bottom:20px;}
+  .order-cat-group>strong{display:block;font-size:.9rem;color:var(--rose-gold-dark);margin-bottom:8px;letter-spacing:.02em;text-transform:uppercase;}
+  .order-item{
+    display:flex;align-items:center;gap:12px;background:var(--cream);
+    border:1px solid var(--blush);border-radius:12px;padding:10px 12px;margin-bottom:8px;
+  }
+  .order-item img,.order-item .noimg{width:40px;height:40px;border-radius:8px;object-fit:cover;background:var(--blush);flex-shrink:0;}
+  .order-item .noimg{display:flex;align-items:center;justify-content:center;font-size:1.1rem;}
+  .order-item-name{flex:1;min-width:0;font-weight:700;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .order-move-btns{display:flex;gap:6px;flex-shrink:0;}
+  .order-move-btns button{
+    width:32px;height:32px;border-radius:8px;background:var(--white);
+    border:1.5px solid var(--blush);color:var(--plum);font-size:1rem;font-weight:800;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .order-move-btns button:disabled{opacity:.3;cursor:default;}
+  .order-move-btns button:not(:disabled):hover{background:var(--plum);color:#fff;border-color:var(--plum);}
 
   @media (max-width:600px){
     .hero h1{font-size:1.9rem;}
@@ -445,9 +484,13 @@
     <h2>Nosso Cardápio</h2>
     <span>Escolha seus favoritos e monte seu pedido</span>
   </div>
-  <div class="tabs" id="tabs"></div>
-  <div class="grid" id="productGrid"></div>
 </section>
+
+<div class="tabs-sticky-wrap">
+  <div class="tabs" id="tabs"></div>
+</div>
+
+<div class="menu-body" id="menuSections"></div>
 
 <footer>
   <p>Feito com <span class="script" style="font-size:1.1rem;">amor</span> — Amor no Pote © <span id="year"></span></p>
@@ -533,6 +576,7 @@
   </div>
   <div class="admin-tabs">
     <button class="admin-tab active" data-tab="products">Produtos</button>
+    <button class="admin-tab" data-tab="order">Ordenar</button>
     <button class="admin-tab" data-tab="orders">Pedidos</button>
     <button class="admin-tab" data-tab="settings">Configurações</button>
   </div>
@@ -543,6 +587,14 @@
         <button class="add-product-btn" id="addProductBtn">+ Novo produto</button>
       </div>
       <div class="admin-list" id="adminProductList"></div>
+    </div>
+    <div id="adminOrderTab" style="display:none;">
+      <div class="admin-row"><h2>Ordem de exibição</h2></div>
+      <p class="sub" style="margin:-6px 0 18px;">Use as setas para mudar a posição das categorias e dos produtos no cardápio. Quem estiver no topo aparece primeiro para o cliente.</p>
+      <h3 class="order-subhead">Categorias</h3>
+      <div class="admin-list" id="adminCategoryOrderList"></div>
+      <h3 class="order-subhead" style="margin-top:26px;">Produtos por categoria</h3>
+      <div id="adminProductOrderList"></div>
     </div>
     <div id="adminOrdersTab" style="display:none;">
       <div class="admin-row"><h2>Pedidos</h2></div>
@@ -660,7 +712,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc,
-  collection, onSnapshot
+  collection, onSnapshot, writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -686,6 +738,7 @@ const DEFAULT_SETTINGS = {
   logo: LOGO_DATA_URL,
   storeStatus: "auto",
   statusNote: "",
+  categoryOrder: [],
   hours: {
     weekOpen: "11:00",
     weekClose: "22:00",
@@ -710,7 +763,7 @@ let products = [];
 let orders = [];
 let cart = [];
 let isAdmin = false;
-let activeCategory = "Todos";
+let activeCategory = null;
 let editingProductId = null;
 let productsSeeded = false;
 
@@ -757,7 +810,7 @@ async function initData(){
     reconcileCartWithStock();
     renderTabs();
     renderProducts();
-    if(isAdmin) renderAdminProducts();
+    if(isAdmin){ renderAdminProducts(); renderAdminOrderTab(); }
   }, (err)=> console.error('products listener error', err));
 
   onSnapshot(collection(db, 'orders'), (snap)=>{
@@ -778,6 +831,14 @@ function renderAll(){
   document.getElementById('heroTagline').textContent = settings.tagline;
   document.getElementById('heroLead').textContent = settings.lead;
   renderStoreStatus();
+  updateHeaderHeightVar();
+  // a ordem das categorias vive nas configurações, então qualquer mudança nela
+  // precisa re-renderizar as abas e as seções do cardápio
+  if(products.length){
+    renderTabs();
+    renderProducts();
+    if(isAdmin) renderAdminOrderTab();
+  }
 }
 
 // ---------- HORÁRIOS / STATUS DA LOJA ----------
@@ -888,21 +949,42 @@ function reconcileCartWithStock(){
 }
 
 // ---------- STOREFRONT ----------
+// Returns categories in the order chosen by the lojista (settings.categoryOrder),
+// with any new/unordered categories appended at the end.
 function getCategories(){
   const cats = Array.from(new Set(products.map(p=>p.category).filter(Boolean)));
-  return ["Todos", ...cats];
+  const savedOrder = (settings && settings.categoryOrder) || [];
+  const ordered = savedOrder.filter(c => cats.includes(c));
+  const rest = cats.filter(c => !ordered.includes(c));
+  return [...ordered, ...rest];
 }
+// Products of one category, sorted by the lojista's chosen order (field `order`),
+// falling back to name so unordered products still have a stable position.
+function productsInCategory(cat){
+  return products
+    .filter(p => p.category === cat)
+    .sort((a,b) => {
+      const oa = typeof a.order === 'number' ? a.order : 1e9;
+      const ob = typeof b.order === 'number' ? b.order : 1e9;
+      if(oa !== ob) return oa - ob;
+      return (a.name||'').localeCompare(b.name||'');
+    });
+}
+function slugify(s){
+  return String(s||'')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase().trim()
+    .replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'cat';
+}
+
 function renderTabs(){
   const wrap = document.getElementById('tabs');
   const cats = getCategories();
   if(cats.length <= 1){ wrap.innerHTML=""; return; }
+  if(!activeCategory || !cats.includes(activeCategory)){ activeCategory = cats[0]; }
   wrap.innerHTML = cats.map(c => `<button class="tab ${c===activeCategory?'active':''}" data-cat="${escapeAttr(c)}">${escapeHtml(c)}</button>`).join('');
   wrap.querySelectorAll('.tab').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      activeCategory = btn.dataset.cat;
-      renderTabs();
-      renderProducts();
-    });
+    btn.addEventListener('click', ()=> scrollToCategory(btn.dataset.cat));
   });
 }
 
@@ -914,24 +996,8 @@ function escapeHtml(s){
 }
 function escapeAttr(s){ return escapeHtml(s); }
 
-function renderProducts(){
-  const grid = document.getElementById('productGrid');
-  let list = products;
-  if(activeCategory !== "Todos"){
-    list = list.filter(p=>p.category === activeCategory);
-  }
-  if(products.length === 0){
-    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">
-      <div class="jar-emoji">🍯</div>
-      <p>Nosso cardápio está sendo preparado com carinho.<br>Volte em breve!</p>
-    </div>`;
-    return;
-  }
-  if(list.length === 0){
-    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><p>Nenhum produto nessa categoria.</p></div>`;
-    return;
-  }
-  grid.innerHTML = list.map(p => `
+function productCardHtml(p){
+  return `
     <div class="product-card">
       <div class="product-img-wrap">
         ${p.image ? `<img src="${p.image}" alt="${escapeAttr(p.name)}">` : `<div class="noimg">🍬</div>`}
@@ -948,10 +1014,102 @@ function renderProducts(){
         </div>
       </div>
     </div>
-  `).join('');
-  grid.querySelectorAll('.add-btn').forEach(btn=>{
+  `;
+}
+
+// Renders every category as its own section, one after another, so the whole
+// menu scrolls continuously (like the iFood cardápio) instead of filtering.
+function renderProducts(){
+  const container = document.getElementById('menuSections');
+  if(products.length === 0){
+    container.innerHTML = `<div class="empty-state">
+      <div class="jar-emoji">🍯</div>
+      <p>Nosso cardápio está sendo preparado com carinho.<br>Volte em breve!</p>
+    </div>`;
+    return;
+  }
+  const cats = getCategories();
+  container.innerHTML = cats.map(cat => {
+    const list = productsInCategory(cat);
+    if(list.length === 0) return '';
+    return `
+    <section class="category-section" id="cat-${slugify(cat)}" data-cat="${escapeAttr(cat)}">
+      <h3 class="category-heading">${escapeHtml(cat)}</h3>
+      <div class="grid">${list.map(productCardHtml).join('')}</div>
+    </section>`;
+  }).join('');
+  container.querySelectorAll('.add-btn').forEach(btn=>{
     btn.addEventListener('click', ()=> addToCart(btn.dataset.id));
   });
+  setupScrollSpy();
+}
+
+// ---------- SCROLLSPY (highlights the tab of the category currently in view) ----------
+let suppressSpyUntil = 0;
+let scrollSpyBound = false;
+
+function getStickyOffset(){
+  const header = document.querySelector('header.site-header');
+  const tabsWrap = document.querySelector('.tabs-sticky-wrap');
+  return (header ? header.offsetHeight : 0) + (tabsWrap ? tabsWrap.offsetHeight : 0);
+}
+
+function highlightActiveTab(){
+  const wrap = document.getElementById('tabs');
+  if(!wrap) return;
+  wrap.querySelectorAll('.tab').forEach(b=>{
+    const isActive = b.dataset.cat === activeCategory;
+    b.classList.toggle('active', isActive);
+    if(isActive) b.scrollIntoView({behavior:'smooth', inline:'center', block:'nearest'});
+  });
+}
+
+function scrollToCategory(cat){
+  const el = document.getElementById('cat-' + slugify(cat));
+  if(!el) return;
+  const offset = getStickyOffset();
+  const top = el.getBoundingClientRect().top + window.scrollY - offset - 10;
+  suppressSpyUntil = Date.now() + 700;
+  activeCategory = cat;
+  highlightActiveTab();
+  window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+}
+
+function updateActiveCategoryFromScroll(){
+  const sections = document.querySelectorAll('.category-section');
+  if(!sections.length) return;
+  const offset = getStickyOffset() + 12;
+  let current = sections[0].dataset.cat;
+  sections.forEach(sec=>{
+    if(sec.getBoundingClientRect().top - offset <= 0){ current = sec.dataset.cat; }
+  });
+  if(current !== activeCategory){
+    activeCategory = current;
+    highlightActiveTab();
+  }
+}
+
+let spyTicking = false;
+function onMenuScroll(){
+  if(spyTicking) return;
+  spyTicking = true;
+  requestAnimationFrame(()=>{
+    spyTicking = false;
+    if(Date.now() < suppressSpyUntil) return;
+    updateActiveCategoryFromScroll();
+  });
+}
+
+function setupScrollSpy(){
+  if(scrollSpyBound) return;
+  scrollSpyBound = true;
+  window.addEventListener('scroll', onMenuScroll, { passive: true });
+  window.addEventListener('resize', updateHeaderHeightVar);
+}
+
+function updateHeaderHeightVar(){
+  const header = document.querySelector('header.site-header');
+  if(header) document.documentElement.style.setProperty('--header-h', header.offsetHeight + 'px');
 }
 
 // ---------- CART ----------
@@ -1237,6 +1395,7 @@ function openAdmin(){
   document.getElementById('adminShell').classList.add('show');
   switchAdminTab('products');
   renderAdminProducts();
+  renderAdminOrderTab();
   renderAdminOrders();
   fillSettingsForm();
   lockBodyScroll();
@@ -1249,8 +1408,10 @@ function closeAdmin(){
 function switchAdminTab(tab){
   document.querySelectorAll('.admin-tab').forEach(b=> b.classList.toggle('active', b.dataset.tab===tab));
   document.getElementById('adminProductsTab').style.display = tab==='products' ? '' : 'none';
+  document.getElementById('adminOrderTab').style.display = tab==='order' ? '' : 'none';
   document.getElementById('adminOrdersTab').style.display = tab==='orders' ? '' : 'none';
   document.getElementById('adminSettingsTab').style.display = tab==='settings' ? '' : 'none';
+  if(tab==='order') renderAdminOrderTab();
 }
 
 function renderAdminProducts(){
@@ -1286,6 +1447,88 @@ function renderAdminProducts(){
   wrap.querySelectorAll('[data-edit]').forEach(b=> b.addEventListener('click', ()=> openProductForm(b.dataset.edit)));
   wrap.querySelectorAll('[data-toggle]').forEach(b=> b.addEventListener('click', ()=> toggleAvailability(b.dataset.toggle)));
   wrap.querySelectorAll('[data-del]').forEach(b=> b.addEventListener('click', ()=> deleteProduct(b.dataset.del)));
+}
+
+// ---------- ORDENAÇÃO (área do lojista) ----------
+// Reordena categorias e produtos por arrastar-não — usa setas pra cima/baixo,
+// que funcionam bem em celular e não dependem de bibliotecas externas.
+function renderAdminOrderTab(){
+  renderAdminCategoryOrder();
+  renderAdminProductOrder();
+}
+
+function renderAdminCategoryOrder(){
+  const wrap = document.getElementById('adminCategoryOrderList');
+  if(!wrap) return;
+  const cats = getCategories();
+  if(cats.length === 0){
+    wrap.innerHTML = `<div class="empty-admin">Cadastre produtos para poder ordenar as categorias.</div>`;
+    return;
+  }
+  wrap.innerHTML = cats.map((cat, i) => `
+    <div class="order-item">
+      <div class="order-item-name">${escapeHtml(cat)}</div>
+      <div class="order-move-btns">
+        <button data-cat-up="${escapeAttr(cat)}" ${i===0?'disabled':''} title="Mover para cima">↑</button>
+        <button data-cat-down="${escapeAttr(cat)}" ${i===cats.length-1?'disabled':''} title="Mover para baixo">↓</button>
+      </div>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('[data-cat-up]').forEach(b=> b.addEventListener('click', ()=> moveCategory(b.dataset.catUp, -1)));
+  wrap.querySelectorAll('[data-cat-down]').forEach(b=> b.addEventListener('click', ()=> moveCategory(b.dataset.catDown, 1)));
+}
+
+async function moveCategory(cat, dir){
+  const cats = getCategories();
+  const i = cats.indexOf(cat);
+  const j = i + dir;
+  if(i < 0 || j < 0 || j >= cats.length) return;
+  [cats[i], cats[j]] = [cats[j], cats[i]];
+  try{
+    await updateDoc(doc(db, 'meta', 'settings'), { categoryOrder: cats });
+  }catch(e){ console.error(e); showToast("Erro ao reordenar categorias."); }
+}
+
+function renderAdminProductOrder(){
+  const wrap = document.getElementById('adminProductOrderList');
+  if(!wrap) return;
+  const cats = getCategories();
+  if(cats.length === 0){
+    wrap.innerHTML = '';
+    return;
+  }
+  wrap.innerHTML = cats.map(cat => {
+    const list = productsInCategory(cat);
+    return `
+    <div class="order-cat-group">
+      <strong>${escapeHtml(cat)}</strong>
+      ${list.map((p, i) => `
+        <div class="order-item">
+          ${p.image ? `<img src="${p.image}" alt="">` : `<div class="noimg">🍬</div>`}
+          <div class="order-item-name">${escapeHtml(p.name)}</div>
+          <div class="order-move-btns">
+            <button data-prod-up="${p.id}" data-cat="${escapeAttr(cat)}" ${i===0?'disabled':''} title="Mover para cima">↑</button>
+            <button data-prod-down="${p.id}" data-cat="${escapeAttr(cat)}" ${i===list.length-1?'disabled':''} title="Mover para baixo">↓</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>`;
+  }).join('');
+  wrap.querySelectorAll('[data-prod-up]').forEach(b=> b.addEventListener('click', ()=> moveProduct(b.dataset.prodUp, b.dataset.cat, -1)));
+  wrap.querySelectorAll('[data-prod-down]').forEach(b=> b.addEventListener('click', ()=> moveProduct(b.dataset.prodDown, b.dataset.cat, 1)));
+}
+
+async function moveProduct(id, cat, dir){
+  const list = productsInCategory(cat);
+  const i = list.findIndex(p => p.id === id);
+  const j = i + dir;
+  if(i < 0 || j < 0 || j >= list.length) return;
+  [list[i], list[j]] = [list[j], list[i]];
+  try{
+    const batch = writeBatch(db);
+    list.forEach((p, idx) => batch.update(doc(db, 'products', p.id), { order: idx }));
+    await batch.commit();
+  }catch(e){ console.error(e); showToast("Erro ao reordenar produtos."); }
 }
 
 async function adjustStock(id, delta){
@@ -1559,6 +1802,7 @@ function updateViewportHeight(){
   document.documentElement.style.setProperty('--real-vh', h + 'px');
 }
 updateViewportHeight();
+updateHeaderHeightVar();
 window.addEventListener('resize', updateViewportHeight);
 window.addEventListener('orientationchange', updateViewportHeight);
 if(window.visualViewport){
