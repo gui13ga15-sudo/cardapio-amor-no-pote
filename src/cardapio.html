@@ -157,32 +157,41 @@
   .category-heading{font-size:1.35rem;margin-bottom:16px;}
 
   .grid{
-    display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:22px;
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 28px;
+    border-top:1px solid var(--blush);
   }
 
   .product-card{
-    background:var(--white);border-radius:20px;box-shadow:var(--shadow-sm);
-    overflow:hidden;position:relative;display:flex;flex-direction:column;
-    transition:transform .18s ease, box-shadow .18s ease;
+    background:transparent;border-bottom:1px solid var(--blush);
+    min-height:176px;padding:20px 0;position:relative;display:grid;
+    grid-template-columns:minmax(0,1fr) 142px;gap:18px;
+    transition:background .18s ease;
   }
-  .product-card:hover{transform:translateY(-4px);box-shadow:var(--shadow);}
-  .product-img-wrap{position:relative;aspect-ratio:1/1;background:var(--blush);overflow:hidden;}
+  .product-card:hover{background:rgba(255,253,251,.55);}
+  .product-img-wrap{position:relative;width:142px;height:142px;background:var(--blush);overflow:hidden;border-radius:14px;grid-column:2;grid-row:1;}
   .product-img-wrap img{width:100%;height:100%;object-fit:cover;}
   .product-img-wrap .noimg{
     width:100%;height:100%;display:flex;align-items:center;justify-content:center;
     font-size:2.4rem;color:var(--rose-gold);
   }
-  .seal{
-    position:absolute;top:-10px;right:12px;background:var(--rose-gold);color:#fff;
-    width:52px;height:58px;display:flex;align-items:center;justify-content:center;
-    font-family:'Fraunces',serif;font-weight:700;font-size:.78rem;text-align:center;
-    clip-path:polygon(0% 0%,100% 0%,100% 78%,50% 100%,0% 78%);
-    box-shadow:0 4px 10px rgba(0,0,0,.15);padding-top:2px;
+  .promo-badge{
+    position:absolute;left:8px;top:8px;background:var(--ok);color:var(--white);
+    border-radius:999px;padding:4px 8px;font-size:.7rem;font-weight:800;
   }
-  .product-body{padding:16px 16px 18px;display:flex;flex-direction:column;gap:6px;flex:1;}
-  .product-body h3{font-size:1.08rem;line-height:1.25;}
-  .product-body p{margin:0;font-size:.85rem;color:var(--plum-soft);flex:1;line-height:1.4;}
-  .product-footer{display:flex;align-items:center;justify-content:space-between;margin-top:8px;}
+  .product-body{grid-column:1;grid-row:1;padding:4px 0;display:flex;flex-direction:column;gap:6px;min-width:0;}
+  .product-body h3{font-family:'Nunito',sans-serif;font-size:1.05rem;line-height:1.3;}
+  .product-body p{margin:0;font-size:.88rem;color:var(--plum-soft);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .product-price{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:auto;font-size:1.02rem;font-weight:800;color:var(--plum);}
+  .old-price{color:var(--plum-soft);font-size:.88rem;font-weight:600;text-decoration:line-through;opacity:.65;}
+  .discount-pill{background:var(--ok);color:var(--white);padding:3px 7px;border-radius:999px;font-size:.72rem;font-weight:800;}
+  .product-footer{display:flex;align-items:center;justify-content:space-between;margin-top:4px;}
+  .promo-section .category-heading{color:var(--danger);}
+  @media (max-width:780px){
+    .grid{grid-template-columns:1fr;}
+    .product-card{grid-template-columns:minmax(0,1fr) 124px;min-height:158px;gap:14px;padding:16px 0;}
+    .product-img-wrap{width:124px;height:124px;border-radius:12px;}
+    .menu-body{padding-left:20px;padding-right:20px;}
+  }
   .add-btn{
     background:var(--plum);color:#fff;width:38px;height:38px;border-radius:50%;
     font-size:1.3rem;display:flex;align-items:center;justify-content:center;
@@ -689,6 +698,15 @@
         <textarea id="prodDesc" placeholder="Fale um pouco sobre o produto..."></textarea>
       </div>
       <div class="field" style="display:flex;align-items:center;gap:10px;">
+        <input type="checkbox" id="prodPromotion" style="width:auto;">
+        <label for="prodPromotion" style="margin:0;">Colocar este produto em promoção</label>
+      </div>
+      <div class="field" id="prodOldPriceField" style="display:none;">
+        <label for="prodOldPrice">Preço anterior (R$)</label>
+        <input type="number" id="prodOldPrice" step="0.01" min="0" placeholder="Ex: 25.00">
+        <p class="sub" style="margin:6px 0 0;">O preço atual será exibido como promocional e o preço anterior ficará riscado.</p>
+      </div>
+      <div class="field" style="display:flex;align-items:center;gap:10px;">
         <input type="checkbox" id="prodTrackStock" style="width:auto;">
         <label for="prodTrackStock" style="margin:0;">Controlar estoque deste produto</label>
       </div>
@@ -980,9 +998,10 @@ function slugify(s){
 function renderTabs(){
   const wrap = document.getElementById('tabs');
   const cats = getCategories();
-  if(cats.length <= 1){ wrap.innerHTML=""; return; }
-  if(!activeCategory || !cats.includes(activeCategory)){ activeCategory = cats[0]; }
-  wrap.innerHTML = cats.map(c => `<button class="tab ${c===activeCategory?'active':''}" data-cat="${escapeAttr(c)}">${escapeHtml(c)}</button>`).join('');
+  const navCats = products.some(isPromotion) ? ['Promoções', ...cats] : cats;
+  if(navCats.length <= 1){ wrap.innerHTML=""; return; }
+  if(!activeCategory || !navCats.includes(activeCategory)){ activeCategory = navCats[0]; }
+  wrap.innerHTML = navCats.map(c => `<button class="tab ${c===activeCategory?'active':''}" data-cat="${escapeAttr(c)}">${escapeHtml(c)}</button>`).join('');
   wrap.querySelectorAll('.tab').forEach(btn=>{
     btn.addEventListener('click', ()=> scrollToCategory(btn.dataset.cat));
   });
@@ -996,24 +1015,35 @@ function escapeHtml(s){
 }
 function escapeAttr(s){ return escapeHtml(s); }
 
+function isPromotion(p){
+  return !!p && p.promotion === true && Number(p.oldPrice) > Number(p.price);
+}
+function discountPercent(p){
+  if(!isPromotion(p)) return 0;
+  return Math.max(1, Math.round((1 - Number(p.price) / Number(p.oldPrice)) * 100));
+}
 function productCardHtml(p){
+  const promo = isPromotion(p);
   return `
-    <div class="product-card">
-      <div class="product-img-wrap">
-        ${p.image ? `<img src="${p.image}" alt="${escapeAttr(p.name)}">` : `<div class="noimg">🍬</div>`}
-        <div class="seal">${formatPrice(p.price).replace('R$','R$\u200a')}</div>
-        ${!isSellable(p) ? `<div class="unavailable-badge">Esgotado</div>` : ''}
-        ${isSellable(p) && stockLeft(p) <= 5 ? `<div class="stock-badge">${stockLeft(p) === 1 ? 'Última unidade' : `Só ${stockLeft(p)} restantes`}</div>` : ''}
-      </div>
+    <article class="product-card">
       <div class="product-body">
         <h3>${escapeHtml(p.name)}</h3>
         <p>${escapeHtml(p.description||'')}</p>
+        <div class="product-price">
+          <span>${formatPrice(p.price)}</span>
+          ${promo ? `<span class="old-price">${formatPrice(p.oldPrice)}</span><span class="discount-pill">-${discountPercent(p)}%</span>` : ''}
+        </div>
         <div class="product-footer">
-          <span style="font-size:.78rem;color:var(--plum-soft);font-weight:700;">${escapeHtml(p.category||'')}</span>
-          ${isSellable(p) ? `<button class="add-btn" data-id="${p.id}" aria-label="Adicionar ao carrinho">+</button>` : ''}
+          <span style="font-size:.78rem;color:var(--plum-soft);font-weight:700;">${isSellable(p) && stockLeft(p) <= 5 ? (stockLeft(p) === 1 ? 'Última unidade' : `Só ${stockLeft(p)} restantes`) : escapeHtml(p.category||'')}</span>
+          ${isSellable(p) ? `<button class="add-btn" data-id="${p.id}" aria-label="Adicionar ${escapeAttr(p.name)} ao carrinho">+</button>` : `<strong style="color:var(--danger);font-size:.82rem;">Esgotado</strong>`}
         </div>
       </div>
-    </div>
+      <div class="product-img-wrap">
+        ${p.image ? `<img src="${p.image}" alt="${escapeAttr(p.name)}">` : `<div class="noimg">🍬</div>`}
+        ${promo ? `<span class="promo-badge">Oferta</span>` : ''}
+        ${!isSellable(p) ? `<div class="unavailable-badge">Esgotado</div>` : ''}
+      </div>
+    </article>
   `;
 }
 
@@ -1029,7 +1059,13 @@ function renderProducts(){
     return;
   }
   const cats = getCategories();
-  container.innerHTML = cats.map(cat => {
+  const promotions = products.filter(isPromotion).sort((a,b) => discountPercent(b) - discountPercent(a));
+  const promoSection = promotions.length ? `
+    <section class="category-section promo-section" id="cat-${slugify('Promoções')}" data-cat="Promoções">
+      <h3 class="category-heading">Promoções</h3>
+      <div class="grid">${promotions.map(productCardHtml).join('')}</div>
+    </section>` : '';
+  container.innerHTML = promoSection + cats.map(cat => {
     const list = productsInCategory(cat);
     if(list.length === 0) return '';
     return `
@@ -1425,7 +1461,7 @@ function renderAdminProducts(){
       ${p.image ? `<img src="${p.image}" alt="">` : `<div class="noimg">🍬</div>`}
       <div class="admin-item-info">
         <strong>${escapeHtml(p.name)}</strong>
-        <span>${escapeHtml(p.category||'')} · ${formatPrice(p.price)}</span>
+        <span>${escapeHtml(p.category||'')} · ${formatPrice(p.price)}${isPromotion(p) ? ` · Promoção de ${formatPrice(p.oldPrice)}` : ''}</span>
       </div>
       <span class="status-pill ${isSellable(p)?'available':'unavailable'}">${isSellable(p)?'Disponível':'Esgotado'}</span>
       ${tracksStock(p)
@@ -1570,6 +1606,9 @@ function openProductForm(id){
     document.getElementById('prodCategory').value = p.category || '';
     document.getElementById('prodPrice').value = p.price;
     document.getElementById('prodDesc').value = p.description || '';
+    document.getElementById('prodPromotion').checked = isPromotion(p);
+    document.getElementById('prodOldPrice').value = p.oldPrice || '';
+    updatePromotionFieldVisibility();
     document.getElementById('prodAvailable').checked = p.available !== false;
     document.getElementById('prodTrackStock').checked = tracksStock(p);
     document.getElementById('prodStock').value = tracksStock(p) ? stockLeft(p) : '';
@@ -1583,6 +1622,9 @@ function openProductForm(id){
   }else{
     document.getElementById('productModalTitle').textContent = 'Novo produto';
     document.getElementById('prodId').value = '';
+    document.getElementById('prodPromotion').checked = false;
+    document.getElementById('prodOldPrice').value = '';
+    updatePromotionFieldVisibility();
     document.getElementById('prodTrackStock').checked = false;
     document.getElementById('prodStock').value = '';
     updateStockFieldVisibility();
@@ -1604,6 +1646,10 @@ async function submitProductForm(e){
     category: document.getElementById('prodCategory').value.trim(),
     price: parseFloat(document.getElementById('prodPrice').value) || 0,
     description: document.getElementById('prodDesc').value.trim(),
+    promotion: document.getElementById('prodPromotion').checked,
+    oldPrice: document.getElementById('prodPromotion').checked
+      ? (parseFloat(document.getElementById('prodOldPrice').value) || 0)
+      : 0,
     available: document.getElementById('prodAvailable').checked,
     trackStock: document.getElementById('prodTrackStock').checked,
     stock: document.getElementById('prodTrackStock').checked
@@ -1779,11 +1825,18 @@ document.getElementById('prodImgInput').addEventListener('change', async (e)=>{
   document.getElementById('prodImgUploadText').style.display='none';
 });
 
+function updatePromotionFieldVisibility(){
+  const enabled = document.getElementById('prodPromotion').checked;
+  document.getElementById('prodOldPriceField').style.display = enabled ? '' : 'none';
+  document.getElementById('prodOldPrice').required = enabled;
+}
+
 function updateStockFieldVisibility(){
   const on = document.getElementById('prodTrackStock').checked;
   document.getElementById('prodStockField').style.display = on ? '' : 'none';
 }
 document.getElementById('prodTrackStock').addEventListener('change', updateStockFieldVisibility);
+document.getElementById('prodPromotion').addEventListener('change', updatePromotionFieldVisibility);
 
 document.getElementById('settingsForm').addEventListener('submit', submitSettingsForm);
 document.getElementById('logoFileInput').addEventListener('change', async (e)=>{
