@@ -997,8 +997,8 @@ function slugify(s){
 
 function renderTabs(){
   const wrap = document.getElementById('tabs');
-  const cats = getCategories();
-  const navCats = products.some(isPromotion) ? ['Promoções', ...cats] : cats;
+  const cats = getCategories().filter(c => c !== 'Combos');
+  const navCats = ['Promoções', 'Combos', ...cats];
   if(navCats.length <= 1){ wrap.innerHTML=""; return; }
   if(!activeCategory || !navCats.includes(activeCategory)){ activeCategory = navCats[0]; }
   wrap.innerHTML = navCats.map(c => `<button class="tab ${c===activeCategory?'active':''}" data-cat="${escapeAttr(c)}">${escapeHtml(c)}</button>`).join('');
