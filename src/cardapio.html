@@ -837,6 +837,8 @@ async function initData(){
   }, (err)=> console.error('orders listener error', err));
 
   document.getElementById('year').textContent = new Date().getFullYear();
+  renderTabs();
+  renderProducts();
   renderCart();
   renderStoreStatus();
   setInterval(renderStoreStatus, 60000);
