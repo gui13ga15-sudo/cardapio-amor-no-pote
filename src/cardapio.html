@@ -1640,15 +1640,23 @@ async function submitProductForm(e){
   e.preventDefault();
   const id = document.getElementById('prodId').value || ('p_' + Date.now() + '_' + Math.random().toString(36).slice(2,7));
   const existing = products.find(p=>p.id===id);
+  const currentPrice = parseFloat(document.getElementById('prodPrice').value) || 0;
+  const promotionEnabled = document.getElementById('prodPromotion').checked;
+  const previousPrice = parseFloat(document.getElementById('prodOldPrice').value) || 0;
+  if(promotionEnabled && previousPrice <= currentPrice){
+    showToast("O preço anterior precisa ser maior que o preço promocional.");
+    document.getElementById('prodOldPrice').focus();
+    return;
+  }
   const data = {
     id,
     name: document.getElementById('prodName').value.trim(),
     category: document.getElementById('prodCategory').value.trim(),
-    price: parseFloat(document.getElementById('prodPrice').value) || 0,
+    price: currentPrice,
     description: document.getElementById('prodDesc').value.trim(),
-    promotion: document.getElementById('prodPromotion').checked,
-    oldPrice: document.getElementById('prodPromotion').checked
-      ? (parseFloat(document.getElementById('prodOldPrice').value) || 0)
+    promotion: promotionEnabled,
+    oldPrice: promotionEnabled
+      ? previousPrice
       : 0,
     available: document.getElementById('prodAvailable').checked,
     trackStock: document.getElementById('prodTrackStock').checked,
