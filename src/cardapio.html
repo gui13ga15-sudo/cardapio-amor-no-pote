@@ -817,19 +817,31 @@ async function initData(){
   }, (err)=> console.error('settings listener error', err));
 
   onSnapshot(collection(db, 'products'), async (snap)=>{
-    if(snap.empty && !productsSeeded){
+    // IMPORTANTE: só semear os produtos padrão quando o servidor confirmar que a
+    // coleção está realmente vazia E o marcador de carga inicial não existir.
+    // Sem essas duas travas, um snapshot vazio vindo do cache (primeiro acesso,
+    // rede lenta ou offline) reescrevia todos os produtos com os valores/fotos
+    // padrão, apagando as edições do lojista.
+    if(snap.empty && !snap.metadata.fromCache && !productsSeeded){
       productsSeeded = true;
       try{
-        await Promise.all(DEFAULT_PRODUCTS.map(p => setDoc(doc(db, 'products', p.id), p)));
+        const seedRef = doc(db, 'meta', 'seed');
+        const seedSnap = await getDoc(seedRef);
+        if(!seedSnap.exists()){
+          await Promise.all(DEFAULT_PRODUCTS.map(p => setDoc(doc(db, 'products', p.id), p)));
+          await setDoc(seedRef, { productsSeededAt: new Date().toISOString() });
+        }
       }catch(e){ console.error('seed products failed', e); }
       return;
     }
+    if(snap.empty && snap.metadata.fromCache) return;
     products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     reconcileCartWithStock();
     renderTabs();
     renderProducts();
     if(isAdmin){ renderAdminProducts(); renderAdminOrderTab(); }
   }, (err)=> console.error('products listener error', err));
+
 
   onSnapshot(collection(db, 'orders'), (snap)=>{
     orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
