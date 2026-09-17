@@ -803,10 +803,13 @@ async function initData(){
   const settingsRef = doc(db, 'meta', 'settings');
   try{
     const snap = await getDoc(settingsRef);
-    if(!snap.exists()){
+    // Só cria as configurações padrão se o servidor confirmar que não existem,
+    // evitando sobrescrever logo/horários salvos quando a resposta vem do cache.
+    if(!snap.exists() && !snap.metadata.fromCache){
       await setDoc(settingsRef, DEFAULT_SETTINGS);
     }
   }catch(e){ console.error('settings init failed', e); }
+
 
   onSnapshot(settingsRef, (snap)=>{
     if(snap.exists()){
