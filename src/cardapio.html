@@ -1107,7 +1107,22 @@ function renderProducts(){
   container.querySelectorAll('.add-btn').forEach(btn=>{
     btn.addEventListener('click', ()=> addToCart(btn.dataset.id));
   });
+  setupDescToggles(container);
   setupScrollSpy();
+}
+
+// Descrição dos produtos: mostra "Ver mais" apenas quando o texto é cortado
+// em 2 linhas; ao clicar, expande o texto completo e vira "Ver menos".
+function setupDescToggles(container){
+  container.querySelectorAll('[data-desc-toggle]').forEach(btn=>{
+    const desc = btn.parentElement.querySelector('[data-desc]');
+    if(!desc || desc.scrollHeight <= desc.clientHeight + 2) return;
+    btn.hidden = false;
+    btn.addEventListener('click', ()=>{
+      const expanded = desc.classList.toggle('expanded');
+      btn.textContent = expanded ? 'Ver menos' : 'Ver mais';
+    });
+  });
 }
 
 // ---------- SCROLLSPY (highlights the tab of the category currently in view) ----------
