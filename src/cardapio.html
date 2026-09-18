@@ -1047,7 +1047,8 @@ function productCardHtml(p){
     <article class="product-card">
       <div class="product-body">
         <h3>${escapeHtml(p.name)}</h3>
-        <p>${escapeHtml(p.description||'')}</p>
+        <p class="product-desc" data-desc>${escapeHtml(p.description||'')}</p>
+        <button type="button" class="desc-toggle" data-desc-toggle hidden>Ver mais</button>
         <div class="product-price">
           <span>${formatPrice(p.price)}</span>
           ${promo ? `<span class="old-price">${formatPrice(p.oldPrice)}</span><span class="discount-pill">-${discountPercent(p)}%</span>` : ''}
