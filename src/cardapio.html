@@ -1919,6 +1919,8 @@ if(window.visualViewport){
 }
 
 initData();
+window.__testMenu = (list) => { products = list; renderProducts(); return document.getElementById('menuSections').innerText; };
+
 </script>
 </body>
 </html>
