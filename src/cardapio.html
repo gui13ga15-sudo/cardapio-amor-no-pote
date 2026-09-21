@@ -1084,7 +1084,9 @@ function renderProducts(){
     return;
   }
   const cats = getCategories().filter(c => c !== 'Combos');
-  const promotions = products.filter(isPromotion).sort((a,b) => discountPercent(b) - discountPercent(a));
+  // Produtos esgotados/indisponíveis não aparecem para o cliente: saem do cardápio.
+  const promotions = products.filter(p => isPromotion(p) && isSellable(p)).sort((a,b) => discountPercent(b) - discountPercent(a));
+  const combos = productsInCategory('Combos').filter(isSellable);
   const promoSection = `
     <section class="category-section promo-section" id="cat-${slugify('Promoções')}" data-cat="Promoções">
       <h3 class="category-heading">Promoções</h3>
@@ -1093,10 +1095,10 @@ function renderProducts(){
   const combosSection = `
     <section class="category-section" id="cat-${slugify('Combos')}" data-cat="Combos">
       <h3 class="category-heading">Combos</h3>
-      ${productsInCategory('Combos').length ? `<div class="grid">${productsInCategory('Combos').map(productCardHtml).join('')}</div>` : '<p style="color:var(--plum-soft);font-size:.95rem;margin:8px 0 0;">Em breve novos combos especiais para você!</p>'}
+      ${combos.length ? `<div class="grid">${combos.map(productCardHtml).join('')}</div>` : '<p style="color:var(--plum-soft);font-size:.95rem;margin:8px 0 0;">Em breve novos combos especiais para você!</p>'}
     </section>`;
   container.innerHTML = promoSection + combosSection + cats.map(cat => {
-    const list = productsInCategory(cat);
+    const list = productsInCategory(cat).filter(isSellable);
     if(list.length === 0) return '';
     return `
     <section class="category-section" id="cat-${slugify(cat)}" data-cat="${escapeAttr(cat)}">
