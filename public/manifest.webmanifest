@@ -1,0 +1,30 @@
+{
+  "name": "Amor no Pote | Doces Caseiros",
+  "short_name": "Amor no Pote",
+  "description": "Doces caseiros feitos com carinho. Veja o cardápio e peça o seu pelo site.",
+  "lang": "pt-BR",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FBF1E7",
+  "theme_color": "#C4885F",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
