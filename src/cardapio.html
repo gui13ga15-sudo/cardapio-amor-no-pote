@@ -523,9 +523,10 @@
     <button class="close-btn" id="closeCartBtn">✕</button>
   </div>
   <form id="checkoutForm">
+    <div class="closed-banner" id="closedBanner" style="display:none;"></div>
     <div class="drawer-topbar">
       <div class="total-row"><span>Total</span><span id="cartTotal">R$ 0,00</span></div>
-      <button type="submit" class="primary-btn">Finalizar pedido</button>
+      <button type="submit" class="primary-btn" id="checkoutSubmitBtn">Finalizar pedido</button>
     </div>
     <div class="drawer-body">
       <div id="cartItems"></div>
@@ -1312,6 +1313,7 @@ function renderCart(){
     });
   }
   document.getElementById('cartTotal').textContent = formatPrice(cartTotal());
+  renderClosedBlock();
 }
 
 let scrollLockCount = 0;
@@ -1359,6 +1361,7 @@ function updateChangeAmountVisibility(){
 async function submitOrder(e){
   e.preventDefault();
   if(cart.length === 0){ showToast("Seu carrinho está vazio"); return; }
+  if(!isStoreOpen()){ showToast("Loja fechada no momento"); renderClosedBlock(); return; }
   const name = document.getElementById('custName').value.trim();
   const address = document.getElementById('custAddress').value.trim();
   const notes = document.getElementById('custNotes').value.trim();
