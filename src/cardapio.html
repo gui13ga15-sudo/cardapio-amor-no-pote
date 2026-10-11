@@ -432,6 +432,18 @@
   .hours-list li{display:flex;justify-content:space-between;gap:12px;font-size:.92rem;}
   .hours-list li span{color:var(--plum-soft);}
   .status-note{margin:14px 0 0;font-size:.88rem;color:#B8503F;font-weight:700;}
+  .closed-banner{
+    margin:12px 16px 0;
+    padding:12px 14px;
+    background:#FBEAE6;
+    border:1px solid #E8C4BC;
+    border-radius:12px;
+    color:#B8503F;
+    font-size:.9rem;
+    font-weight:700;
+    line-height:1.4;
+    text-align:center;
+  }
 
   /* ESTOQUE + AGENDA */
   .stock-badge{
@@ -523,9 +535,10 @@
     <button class="close-btn" id="closeCartBtn">✕</button>
   </div>
   <form id="checkoutForm">
+    <div class="closed-banner" id="closedBanner" style="display:none;"></div>
     <div class="drawer-topbar">
       <div class="total-row"><span>Total</span><span id="cartTotal">R$ 0,00</span></div>
-      <button type="submit" class="primary-btn">Finalizar pedido</button>
+      <button type="submit" class="primary-btn" id="checkoutSubmitBtn">Finalizar pedido</button>
     </div>
     <div class="drawer-body">
       <div id="cartItems"></div>
@@ -937,6 +950,42 @@ function isStoreOpen(){
   if(st === 'closed') return false;
   return computeOpen();
 }
+// Próxima abertura da loja (texto amigável para o cliente)
+function nextOpeningText(){
+  if((settings.storeStatus || 'auto') === 'closed') return 'em breve';
+  const sch = getSchedule();
+  const now = new Date();
+  const day = now.getDay();
+  const nowMin = now.getHours()*60 + now.getMinutes();
+  for(let offset = 0; offset < 8; offset++){
+    const d = (day + offset) % 7;
+    const s = sch[d];
+    if(!s.open) continue;
+    const fromMin = toMin(s.from);
+    if(offset === 0 && nowMin >= fromMin) continue; // hoje já passou da abertura
+    const dia = offset === 0 ? 'hoje' : offset === 1 ? 'amanhã' : DAY_NAMES[d].toLowerCase().replace('-feira','');
+    return `${dia} às ${s.from}`;
+  }
+  return 'em breve';
+}
+function closedMessage(){
+  return `Estamos fechados no momento. Abrimos ${nextOpeningText()} — volte nesse horário para fazer seu pedido! 💛`;
+}
+function renderClosedBlock(){
+  const banner = document.getElementById('closedBanner');
+  const btn = document.getElementById('checkoutSubmitBtn');
+  if(!banner || !btn) return;
+  const closed = !isStoreOpen();
+  if(closed){
+    banner.textContent = closedMessage();
+    banner.style.display = '';
+  }else{
+    banner.style.display = 'none';
+  }
+  btn.disabled = closed;
+  btn.style.opacity = closed ? '.55' : '';
+  btn.style.cursor = closed ? 'not-allowed' : '';
+}
 function renderStoreStatus(){
   const h = getHours();
   const open = isStoreOpen();
@@ -959,6 +1008,7 @@ function renderStoreStatus(){
     if(settings.statusNote){ note.textContent = settings.statusNote; note.style.display=''; }
     else note.style.display='none';
   }
+  renderClosedBlock();
 }
 
 // ---------- ESTOQUE ----------
@@ -1276,6 +1326,7 @@ function renderCart(){
     });
   }
   document.getElementById('cartTotal').textContent = formatPrice(cartTotal());
+  renderClosedBlock();
 }
 
 let scrollLockCount = 0;
@@ -1323,6 +1374,7 @@ function updateChangeAmountVisibility(){
 async function submitOrder(e){
   e.preventDefault();
   if(cart.length === 0){ showToast("Seu carrinho está vazio"); return; }
+  if(!isStoreOpen()){ showToast("Loja fechada no momento"); renderClosedBlock(); return; }
   const name = document.getElementById('custName').value.trim();
   const address = document.getElementById('custAddress').value.trim();
   const notes = document.getElementById('custNotes').value.trim();
